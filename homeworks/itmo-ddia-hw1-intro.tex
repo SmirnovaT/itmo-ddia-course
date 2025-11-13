@@ -1,0 +1,332 @@
+\documentclass[12pt]{article}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{minted}
+% sudo tlmgr install minted
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian,english]{babel}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdfpagemode=FullScreen,
+}
+
+\newenvironment{problem}{
+    \par\textbf{Задание: }\ignorespaces
+}
+
+\newenvironment{solution}
+{
+  \par\textbf{Решение:}\par\bigbreak
+  \begingroup
+}
+{
+  \par\bigbreak\hfill$\square$%
+  \par\endgroup
+}
+
+\begin{document}
+ 
+\title{
+    \large Принципы построения высоконагруженных систем \\
+    \normalsize Институт прикладных компьютерных наук ИТМО
+    \bigbreak 
+    \LARGE
+    Домашнее задание 1. \\ Мониторинг и нагрузочное тестирование
+    \bigbreak \normalsize
+    Георгий Семенов \\
+    \texttt{georgii.v.semenov@mail.ru} \\
+    Мягкий дедлайн: Сб, 22.11.2025, 23:59 МСК \\
+    Жесткий дедлайн: Сб, 29.11.2025, 23:59 МСК
+}
+\author{
+    \color{red}{Имя Фамилия} \\
+    \normalsize
+    DDIA25-HW1-{\color{red}NameSurname}.pdf
+}
+
+\maketitle
+
+\noindent\rule{\textwidth}{1pt} \bigbreak
+
+{\large Правила курса}
+
+\begin{itemize}
+	\item Задание выдается на $2$ недели с двумя дедлайнами:
+	      \begin{itemize}
+	      	\item \textbf{Мягкий дедлайн} – в рамках этого периода можно заранее отправить решение
+	      	      и получить обратную связь, чтобы исправить замечания до наступления жесткого дедлайна.
+	      	\item \textbf{Жесткий дедлайн} – после этого новые посылки работы не принимаются, сдать работу больше нельзя.
+	      \end{itemize}
+	\item Планируется выдать $4$ домашних задания, каждое из которых стоит $\pm 12$ баллов. Правила выставления оценки за курс следующие:
+	      \begin{itemize}
+	      	\item \textbf{A -- <<5>>} – $\geq 90\%$ от общей суммы обязательных баллов (предв. $\geq 43.2$)
+	      	\item \textbf{B/C -- <<4>>} – $\geq 75\%$ от общей суммы обязательных баллов (предв. $\geq 36$)
+	      	\item \textbf{D/E -- <<3>>} – $\geq 60\%$ от общей суммы обязательных баллов (предв. $\geq 28.8$)
+	      	\item \textbf{F -- <<2>>} – $< 60\%$ от общей суммы обязательных баллов (предв. $< 28.8$)
+	      \end{itemize}
+	\item Выполненное задание рекомендуется оформить в \LaTeX (например, в Overleaf) и выслать файлом с именем вида \texttt{DDIA25-HW1-IvanIvanov.pdf}
+	      на почту выше.
+	      \begin{itemize}
+	      	\item Пожалуйста, оформляйте ответы на задания в блоке \texttt{Решение}.
+	      \end{itemize}
+\end{itemize}
+
+\begin{tabular}{ |p{2cm}||p{1cm}|p{1cm}|p{1cm}|p{1.5cm}|p{1cm}|p{1cm}||p{1cm}||p{1cm}|  }
+	\hline
+	Задание & 1.1   & 1.2   & 1.3 & 1.4 (*) & 2.1   & 2.2   & $\Sigma$ & $\Sigma$ (*) \\
+	\hline
+	Баллы     & $1.5$ & $2.5$ & $3$ & $2$     & $1.5$ & $3.5$ & $12$     & $14$         \\
+	\hline
+\end{tabular}
+
+\break
+
+\section{Мониторинг}{}
+
+\begin{flushleft}
+	В ходе выполнения заданий в этом разделе вам предстоит помочь корпорации \textit{Монокль}
+	внедрить актуальные стандарты мониторинга на основе Prometheus.
+\end{flushleft}
+
+\subsection{Метрики и их классы}
+
+Ранее в \textit{Монокле} у каждого бизнес-юнита были свои политики мониторинга и надежности,
+наиболее подходящие его продуктам и сервисам. Настал момент перейти к централизованной системе мониторинга
+и внедрить единые стандарты телеметрии, в т.ч. сбора метрик.
+
+\begin{problem}
+(1.5 б.) Помогите SRE-команде \textit{Монокля} сформировать глоссарий терминов для нового корпоративного стандарта \textit{observability}.
+Заполните таблицы ниже.
+\end{problem}
+
+\begin{solution}
+	
+	\begin{tabular}{ |p{4cm}|p{11cm}|  } \hline
+		\textit{\href{https://www.ibm.com/think/insights/observability-pillars}{<<Observability Pillar>>}} & Характеристика               \\ \hline
+		                                                                                                   &                              \\ \hline
+		                                                                                                   &                              \\ \hline
+		                                                                                                   &                              \\ \hline
+	\end{tabular}
+	
+	\bigbreak
+	
+	\begin{tabular}{ |p{4cm}|p{8cm}|p{2cm}|  } \hline
+		\textit{\href{https://sre.google/sre-book/monitoring-distributed-systems/}{<<Golden Signal>>}} & Пример метрики & Единица измерения    \\ \hline
+		                                                                                               &                             &                                   \\ \hline
+		                                                                                               &                             &                                   \\ \hline
+		                                                                                               &                             &                                   \\ \hline
+		                                                                                               &                             &                                   \\ \hline
+	\end{tabular}
+	
+	\bigbreak
+	
+	\begin{tabular}{ |p{4cm}|p{11cm}|  } \hline
+		\href{https://en.wikipedia.org/wiki/High_availability}{Метрика доступности} & Описание \\ \hline
+		Uptime (\%)                                                                                   &                  \\ \hline
+		Downtime (s)                                                                                  &                  \\ \hline
+		MTBF (s)                                                                                      &                  \\ \hline
+		MTTR (s)                                                                                      &                  \\ \hline
+		MTTD (s)                                                                                      &                  \\ \hline
+	\end{tabular}
+	
+\end{solution}
+
+\break
+\subsection{SLA}
+
+Бизнес-юнит \textit{Монолит} сейчас использует собственную систему мониторинга \textit{Монада}
+со своим форматом хранения метрик. Метрики \textit{Монады} хранятся в иерархической структуре
+(например, \texttt{//monolith/web/http\_requests/timings}) и соответствуют лишь двум типам:
+RPS-счётчики (\texttt{rate}) и перцентили (\texttt{percentile}). Поддерживаются только перцентили
+из множества $(0.5, 0.75, 0.9, 0.95, 0.99)$.
+
+\begin{flushleft}
+	Настало время <<распилить \textit{Монолит}>> и канонично присоединиться к прогрессивному миру PromQL.
+	SRE-команда \textit{БЮ Монолит} добродушно реализовала PromQL-адаптер к своей системе мониторинга.
+	С ним можно выбрать метрику \textit{Монады} с помощью метки \texttt{monad}, указав путь \texttt{path},
+	облачную зону \texttt{cloud\_dc} (поддерживаются зоны \texttt{AB, BC, CA}), тип поля и метрики
+	\texttt{field} и \texttt{type} (что бы эта идиома ни значила).
+\end{flushleft}
+
+\begin{flushleft}
+	Стажер в SRE-команде \textit{Монокля} получил задачу реализовать централизованный мониторинг SLO
+	на основе предоставленного PromQL-адаптера для бэкенда \textit{Монолита} – 
+	необходимо отслеживать 99-ый перцентиль времени ответа и суммарный RPS запросов:
+\end{flushleft}
+
+\begin{minted}{promql}
+	avg (monad{
+		cloud_dc=~".*",
+		path="//monolith/web/http_requests/timings",
+		field="p99",
+		type="quantile"
+	})
+	
+	sum (monad{
+		cloud_dc=~".*",
+		path="//monolith/web/http_requests/requests",
+		field="1",
+		type="rate"
+	})
+\end{minted}
+
+\begin{problem}
+Помогите SRE-команде \textit{Монокля} оценить и обосновать корректность результата их стажера.
+
+\begin{enumerate}
+	\item (0.75 б.) Приведите пример инцидента, при котором метрики стажера не зафиксируют реальную деградацию доступности сервиса для $>1\%$ пользователей \textit{Монолита}.
+	\item (0.75 б.) Поможет ли использование взвешенного среднего вместо простого усреднения по зонам избежать проблемы в пункте выше? Проиллюстрируйте ответ.
+	\item (0.5 б.) Предложите, как можно усовершенствовать предоставленный PromQL-адаптер, чтобы
+	      помочь стажеру правильно составить необходимые запросы.
+	\item (0.5 б.) Запишите корректные PromQL-выражения для 99-го перцентиля времени ответа и суммарного RPS запросов в предположении, что
+	      эти метрики изначально были доступны как <<настоящие>> Prometheus-метрики, а не как адаптер через
+	      \textit{label} с именем \texttt{monad}.
+\end{enumerate}
+
+\end{problem}
+
+\begin{solution}
+	
+\end{solution}
+
+\break
+\subsection{Светофорные дашборды}
+
+Разобравшись с деталями интеграции бизнес-юнитов корпорации, SRE-команда \textit{Монокля}
+принялась за создание единой 24/7 дежурной смены и дашбордов для мониторинга всех сервисов корпорации.
+Чтобы дежурный мог быстро оценить состояние систем, главный дашборд в Grafana должен быть оформлен
+как множество \textit{светофорных плиток} – каждая плитка Stat отображает состояние одного сервиса:
+
+\begin{itemize}
+	\item Зеленая плитка \colorbox{green}{OK} означает, что все SLO сервиса выполняются.
+	\item Желтая плитка \colorbox{yellow}{WARN} означает, что какой-то SLO сервиса находится в состоянии предупреждения.
+	\item Красная плитка \colorbox{red}{CRIT} означает, что какой-то SLO сервиса не выполнен.
+	\item Серая плитка \colorbox{gray}{?} означает, что какой-то из SLO не получилось посчитать (например, из-за No Data или ошибки запроса).
+\end{itemize}
+
+SRE-команда сразу же решила не заниматься накликиванием дашбордов вручную, а автоматизировать процесс
+создания дашбордов на основе шаблонов и API Grafana. Для этого они хотят написать службу, которая конвертирует
+описание SLO сервисов в красивый светофорный дашборд. Перед этим они разработали некое формальное исчисление
+для описания SLO сервисов корпорации, в него вошли следующие конструкции:
+\begin{itemize}
+	\item $S_i :: service $ – сервис с номером $i$.
+	\item $const :: scalar $ – можно объявить любую константу.
+	\item $\{\text{UNK}, \text{CRIT}, \text{WARN}, \text{OK}\} :: state $ – монотонно возрастающее перечисление состояний многозначного SLO.
+	\item $T_{99\%}(S_i) :: scalar? $ – время ответа (ms) в текущий момент у сервиса $S_i$ для $99\%$ пользователей.
+	\item $R(S_i) :: scalar? $ – рейт запросов (rps) в текущий момент у сервиса $S_i$.
+	\item $ < :: scalar? \rightarrow scalar? \rightarrow state $ – оператор сравнения скалярных величин; если одна из величин неизвестна, возвращает \text{UNK}; если условие верно, возвращает \text{OK}; если условие неверно, возвращает \text{CRIT}.
+	\item $ \vee  :: state \rightarrow state \rightarrow state $ – оператор объединения условий, возвращающий наилучшее из состояний; если одно из состояний UNK, то возвращает UNK.
+	\item $ \wedge  :: state \rightarrow state \rightarrow state $ – оператор объединения условий, возвращающий наихудшее из состояний; если одно из состояний UNK, то возвращает UNK.
+\end{itemize}
+
+Так, корректным термом этого исчисления считается выражение типа $state$, например:
+
+$$(T_{99\%}(S_1) < 200) \wedge (2000 < R(S_1)) \wedge (R(S_1) < 10000) :: state $$
+
+$$(20 < 300) \vee \text{WARN} = \text{OK} :: state $$
+
+
+\begin{problem}
+Помогите SRE-команде \textit{Монокля} реализовать транслятор их формализма в плитки Stat для дашборда в Grafana.
+
+\begin{enumerate}
+	\item (0.25 б.) Запишите терм для следующего SLO: <<$99\%$-время ответа сервиса $S_1$ должно быть больше $200$ мс для \text{WARN} и больше $300$ мс для \text{CRIT}>>.
+	\item (0.5 б.) Отобразите в PromQL типы $\text{scalar}$ и $\text{state}$ и опишите, с помощью каких свойств Stat в Grafana необходимо раскрасить плитки в зависимости от значения $\text{state}$.
+	\item (0.75 б.) Покажите, как реализовать операторы $<, \vee, \wedge$ предложенного исчисления в \href{https://prometheus.io/docs/prometheus/latest/querying/functions/}{PromQL} (подсказка: используйте выражения вида \texttt{OR on() vector(0)}).
+	\item (1.5 б.) Предложите три SLO для параметров вашего ноутбука (docker-окружения), которые можно замерить
+	      с помощью \texttt{node-exporter}. В окружении Grafana с семинара создайте дашборд из трех светофорных плиток (необязательно Stat, но с раскраской) для них.
+	      Прикрепите три терма для ваших SLO, соответствующие им PromQL-выражения и скриншоты дашборда. Один из SLO должен содержать \texttt{WARN} уровень.
+\end{enumerate}
+
+\end{problem}
+
+\begin{solution}
+	
+\end{solution}
+
+\break
+\subsection{Recording rules (*)}
+
+SRE-команда \textit{Монокля} доказала свою компетентность в светофорных дашбордах, поразила своими
+скиллами все продуктовые команды и уже почти обрадовала топ-менеджмент. Но на демонстрации произошла неловкость.
+
+\begin{flushleft}
+	На светофорной борде с интервалом $d = 5s$  было отображено более $n = 200$ светофорчиков, каждый из которых
+	был реализован сложным PromQL-запросом с множеством операторов, рассмотренных выше. Prometheus не справлялся с этой нагрузкой,
+	а Grafana подвисала при попытке отобразить дашборд. Топ-менеджмент был расстроен.
+\end{flushleft}
+
+\begin{flushleft}
+	SRE-команда \textit{Монокля} решила исправить ситуацию с помощью \href{https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/#recording-rules}{\textit{recording rules}}.
+\end{flushleft}
+
+\begin{problem}
+\footnote{Задания и пункты, помеченные звездочкой, не являются обязательными.
+	Эти баллы учитываются в общей сумме за курс, но являются дополнительными. Иными словами,
+вы можете сделать дополнительное задание вместо какого-то обязательного и получить тот же суммарный балл.}
+\begin{itemize}
+	\item (0.5 б.) Объясните, как использование \textit{recording rules} поможет SRE-команде \textit{Монокля} в данной ситуации.
+	\item (1 б.) Напишите \textit{rule group} для ваших метрик светофорных плиток из предыдущего задания в \texttt{prometheus.yml}.
+	      Проверьте корректность вашего файла с помощью \texttt{promtool} и продемонстрируйте результат. Оцените, насколько это субъективно ускорило загрузку вашего дашборда при малом интервале обновления.
+	\item (0.5 б.) Какие ограничения/недостатки у использования \textit{recording rules} вы можете назвать?
+\end{itemize}
+\end{problem}
+
+\begin{solution}
+	
+\end{solution}
+
+\break
+\section{Нагрузочное тестирование}{}
+
+\subsection{Закон Амдала}
+
+Предположим, что программа выполняет операцию широковещательной рассылки (broadcast).  
+Эта операция вносит дополнительное время выполнения, зависящее от числа задействованных ядер~$n$.  
+Доступны две реализации broadcast:
+
+\begin{itemize}
+	\item первая добавляет параллельные накладные расходы $\beta = 0.0001n$;
+	\item вторая --- $\beta = 0.0005 \cdot \ln(n)$.
+\end{itemize}
+
+\bigbreak
+
+\begin{problem}
+(1.5 б.) Для какого числа ядер достигается наибольшее ускорение программы с долей последовательного
+кода$\alpha=0.001$ в каждой из реализаций?
+\end{problem}
+
+\begin{solution}
+	
+\end{solution} 
+
+\break
+\subsection{Case study}
+
+В рамках этого задания вам предлагается \href{https://bytebytego.com/guides/real-world-case-studies/}{выбрать систему},
+рассмотреть ее архитектуру, предложить оценку нагрузки и SLA, выявить \textit{bottlenecks} (см. лекцию) и
+предложить метрики для мониторинга (см. задание 1.1). 
+
+\begin{problem}
+\begin{enumerate}
+	\item (1 б.) Опишите архитектуру и компоненты выбранной вами системы. Оцените внешнюю входную нагрузку и гарантии: throughput, latency, количество пользователей, объем хранимых данных.
+	      Прокомментируйте ваши оценки.
+	\item (1.25 б.) Выявите 3-5 потенциальных \textit{bottlenecks} – \href{https://dictionary.cambridge.org/dictionary/english/speculate}{проспекулируйте}, в каких частях системы они могут возникнуть? Рассмотрите отдельно \textit{database bottlenecks}.
+	\item (1.25 б.) Предложите метрики и их SLO для покрытия предложенных вами \textit{bottlenecks}. Какие стратегии автоматического реагирования можно предложить в случае срабатывания алертов на них?
+\end{enumerate}
+\end{problem}
+
+\begin{solution}
+	
+\end{solution} 
+ 
+\end{document}
