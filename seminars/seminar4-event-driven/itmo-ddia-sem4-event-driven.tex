@@ -1,0 +1,343 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usepackage{minted}
+% sudo tlmgr install minted
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian,english]{babel}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
+
+% Footline: show current section (left) and frame numbers (right)
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.78\paperwidth,ht=2.5ex,dp=1ex,left]{author in head/foot}%
+      \hspace*{1em}\usebeamerfont{footline}\insertsectionhead%
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.22\paperwidth,ht=2.5ex,dp=1ex,right]{date in head/foot}%
+      \usebeamerfont{footline}\insertframenumber{} / \inserttotalframenumber\hspace*{1em}%
+    \end{beamercolorbox}%
+  }%
+}
+
+\newcommand{\parpause}[1]{\only<+->{#1\par}}
+
+\AtBeginSection[]
+{
+  \begin{frame}
+    \frametitle{Содержание}
+    \tableofcontents[currentsection]
+  \end{frame}
+}
+\title{Семинар 4. Событийно-ориентированные архитектуры}
+\subtitle{Принципы построения высоконагруженных систем}
+\author{Георгий Семенов}
+\institute{Институт прикладных компьютерных наук \\ Университет ИТМО}
+\date{осень 2025}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\section{Введение}
+
+\begin{frame}
+  \frametitle{Оставшиеся активности на курсе}
+  \begin{itemize}
+    \item Защита домашнего задания 4 - сегодня после семинара, в понедельник и вторник
+    \item Ликвидация долгов: до $\approx 20$ января, что нужно сделать – обсуждается индивидуально
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Вспоминаем лекцию I}
+  \begin{itemize}
+    \item Synchronous / Asynchronous
+    \item Thread-Per-Request vs. Event Loop
+    \item Очереди сообщений
+    \begin{itemize}
+        \item Гарантии доставки: at-most-once, at-least-once, exactly-once
+        \item Dead Letter Queue (чтобы не останавливать конвейер)
+        \item Transactional Outbox Pattern (чтобы делать композитные штуки без потери данных)
+    \end{itemize}
+    \item Kafka: быстро пишем в топик и читаем по указателю потребителями из партиций
+    \item RabbitMQ: пишем в exchange, маршрутизируем по routing key, читаем из queue (\textsc{direct} = exact match, \textsc{fanout} = broadcast, \textsc{topic} = regex)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Вспоминаем лекцию II}
+  \begin{itemize}
+    \item Теория массового обслуживания
+    \begin{itemize}
+        \item Нужен карман запаса для толерантности к bursts
+        \item Формула Кингмана: среднее время ожидания в очереди заданий
+    \end{itemize}
+    \item Event-Driven Architecture
+    \begin{itemize}
+        \item Хореография – сервисы реагируют на события децентрализованно
+        \item Оркестрация – сервисы реагируют в порядке обхода координатором
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\section{Event-Driven Architectures: Основы}
+
+\begin{frame}
+  \frametitle{EDA: основные понятия}
+  \begin{itemize}
+    \item Событие – иммутабельное сообщение, описывающее факт произошедшего действия
+    \item Сервисы принимают/порождают сообщения в асинхронном режиме
+    \begin{itemize}
+        \item Передаем ID событий – event notification (обратный callback)
+        \item Передаем событие целиком – event-carried state transfer (безопасность, нагрузка данными)
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Форматы данных для представления событий}
+  \begin{itemize}
+    \item Сообщение – это объектная сущность (например, JSON, XML, Protobuf, Avro)
+    \item Совместимость сообщений
+    \begin{itemize}
+        \item Backward - новые сервисы не ломаются от старых сообщений
+        \item Forward - старые сервисы могут видеть новые поля
+    \end{itemize}
+    \item Schema Registry – централизованное хранилище схем сообщений
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Эволюция схемы сообщения на примере protobuf}
+
+    \textbf{Version 1:}
+    \begin{minted}[escapeinside=||]{protobuf}
+message Order {
+    int32 order_id = 1;
+    optional string customer_name = 2;
+    optional double amount = 3;
+    optional string status = 4;
+}
+    \end{minted}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Эволюция схемы сообщения на примере protobuf}
+
+    \textbf{Version 2:}
+    \begin{minted}[escapeinside=||]{protobuf}
+message Order {
+    int32 order_id = 1;
+    optional string customer_name = 2;
+    optional double amount = 3 [deprecated=true];
+    reserved 4;
+    optional int64 timestamp = 5;
+    optional string payment_method = 6;
+}
+    \end{minted}
+    
+\end{frame}
+
+\section{Event Sourcing \& CQRS \& Sagas}
+
+\begin{frame}
+    \frametitle{Команда - поведенческий паттерн ООП}
+
+    \begin{center}
+        \includegraphics[width=0.8\linewidth,keepaspectratio]{images/oop_command.png}
+    \end{center}
+    
+\end{frame}
+
+\begin{frame}
+    \frametitle{Event Sourcing: основные понятия}
+
+    \begin{itemize}
+        \item Источник истины – лог событий (Event Store), а не текущее состояние
+        \item Каждое изменение состояния фиксируется как событие
+        \item Состояние восстанавливается проигрыванием всех событий с начала
+        \begin{itemize}
+                \item Полный аудит и история всех изменений
+                \item Временная машина – можем посмотреть состояние в любой момент
+                \item Отладка: повторяем последовательность событий
+        \end{itemize}
+        \item Минусы: сложность, eventual consistency, размер хранилища (metadata overhead, retention, stabilization)
+        \item Смотрим по ссылочке: \href{https://microservices.io/patterns/data/event-sourcing.html}{microservices.io}
+    \end{itemize}
+
+        
+\end{frame}
+
+\begin{frame}
+    \frametitle{CQRS: Command Query Responsibility Segregation}
+
+    \begin{itemize}
+        \item Разделяем модели для чтения и записи
+        \begin{itemize}
+                \item Write model (Command) – оптимизирован для изменений (в микросервисах)
+                \item Read model (Query) – оптимизирован для чтения (в специальном виде)
+        \end{itemize}
+        \item Event Sourcing + CQRS работают в паре
+        \begin{itemize}
+                \item События записываются в Event Store
+                \item Из событий строится Read Model (денормализованное представление)
+                \item Асинхронное обновление: eventual consistency
+        \end{itemize}
+        \item Смотрим по ссылочке: \href{https://microservices.io/patterns/data/cqrs.html}{microservices.io}
+    \end{itemize}
+
+        
+\end{frame}
+
+\begin{frame}
+    \frametitle{SAGA: управление долгоживущими транзакциями}
+
+    \begin{itemize}
+        \item Долгоживущая транзакция – несколько микросервисов, которые нужно скоординировать
+        \item Два подхода:
+        \begin{itemize}
+                \item Хореография (Choreography) – сервисы реагируют на события друг друга
+                \item Оркестрация (Orchestration) – есть координатор (Saga Orchestrator)
+        \end{itemize}
+        \item Откат при ошибке: compensating transactions (выполняем обратные операции, aka undo-redo)
+        \item Гарантия: каждый шаг либо успешен, либо откачен
+        \item Посмотрим ссылочку здесь: \href{https://microservices.io/patterns/data/saga.html}{microservices.io}
+    \end{itemize}
+
+        
+\end{frame}
+
+\begin{frame}
+    \frametitle{Лирическое отступление: ETL (Extract, Transform, Load)}
+
+    \begin{itemize}
+        \item Extract – извлекаем данные из источника
+        \item Transform – преобразуем, очищаем, обогащаем
+        \item Load – загружаем в хранилище
+        \item Используется для интеграции разнородных систем
+        \item Event-driven подход – streaming ETL (real-time вместо batch)
+        \begin{itemize}
+                \item Apache Kafka + Spark Streaming, Flink, Kafka Streams
+                \item Меньше задержка, но сложнее в отладке
+        \end{itemize}
+    \end{itemize}
+
+\end{frame}
+
+
+\section{Serverless}
+
+\begin{frame}
+    \frametitle{Serverless: основные понятия}
+
+    \begin{itemize}
+        \item Не о том, что нет серверов, а о том, что нет управления серверами
+        \item Function as a Service (FaaS) – платим за время выполнения
+        \item Холодный старт (cold start) – первый запрос медленнее
+        \item Идеален для event-driven архитектур
+        \item Примеры: AWS Lambda, Google Cloud Functions, Azure Functions
+        \item Минусы: vendor lock-in, сложность с состоянием, стоимость при высокой нагрузке
+    \end{itemize}
+
+        
+\end{frame}
+
+\begin{frame}
+    \frametitle{Amazon Lambda}
+
+    \begin{itemize}
+        \item Платим за вычисления (GB-seconds): (память $\times$ время выполнения)
+        \item Триггеры: S3, API Gateway, SQS, SNS, DynamoDB Streams, Kinesis, EventBridge
+        \item Максимум 15 минут на выполнение (для долгих задач – асинхронные вызовы)
+        \item Инструменты: SAM (Serverless Application Model), Serverless Framework
+    \end{itemize}
+
+\end{frame}
+
+
+\section{Демо: сервис обработки изображений}
+
+\begin{frame}
+  \frametitle{Демо: сервис обработки изображений}
+\begin{itemize}
+    \item NB! Пример сгенерирован AI.
+    \item Папка \textbf{queues} $\rightarrow$ \textbf{./start.sh}
+\end{itemize}
+    
+\end{frame}
+
+\section{Итоги}
+
+\begin{frame}
+  \frametitle{На кабана надейся, а сам...}
+  
+   \begin{center}
+    \includegraphics[width=0.8\linewidth,keepaspectratio]{images/meme_ddia.png}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Load balancing \& Work-life balancing}
+  
+   \begin{center}
+    \includegraphics[width=0.6\linewidth,keepaspectratio]{images/meme_balancing.jpg}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bigtech нужен и для благих дел}
+  
+   \begin{center}
+    \includegraphics[width=0.45\linewidth,keepaspectratio]{images/meme_bigtech.jpg}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Спасибо!}
+
+  Спасибо за терпение, работу и обратную связь!
+  
+  \begin{center}
+    \includegraphics[width=0.45\linewidth,keepaspectratio]{images/thanks.jpg}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{Какие <<академические>> способы развития?}
+
+    \begin{itemize}
+        \item Книги:
+        \begin{itemize}
+            \item Release it! Проектирование и дизайн ПО для тех, кому не всё равно 
+            \item Designing Data-Intensive Applications
+            \item Google SRE Books
+            \item Microservices Patterns
+            \item Распределенные данные
+            \item (*) Танненбаум. Операционные системы
+            \item (*) Банда четырех. Паттерны проектирования 
+        \end{itemize}
+        \item Школа анализа данных Яндекса: трек <<Инфраструктура больших данных>>,
+        поступление по альтернативному треку
+        \item \href{https://www.youtube.com/@sukhoa}{Андрей Суховицкий} – лектор по проектированию и event sourcing
+        \item Научные конференции (читать и обнаруживать направления): VLDB, SIGMOD, PODS, ICDT, Middleware, SOCC, EuroSys
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Итоги}
+  \begin{itemize}
+    \item Защищаем ДЗ-4, кому нужно – ликвидируем долги
+    \item Отдыхаем и празднуем Новый год!
+  \end{itemize}
+\end{frame}
+
+\end{document}
